@@ -1,0 +1,125 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:1235/v1/chat/completions",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "messages",
+              "value": "=[\n  {\n    \"role\": \"system\",\n    \"content\": \"Ты — AI-модуль ERP-системы завода 'Скиллтон'. Извлеки параметры деталей из текста заказа. Выдавай ответ СТРОГО в формате JSON, без лишнего текста вокруг. Структура: {\\\"items\\\": [{\\\"name\\\": \\\"...\\\", \\\"width\\\": 0, \\\"height\\\": 0, \\\"length\\\": 0, \\\"quantity\\\": 0, \\\"material\\\": \\\"...\\\", \\\"comment\\\": \\\"...\\\"}], \\\"questions\\\": [\\\"...\\\"]}. Если материал не указан, пиши 'Сосна/Ель' по умолчанию и добавляй в массив questions этот вопрос.\"\n  },\n  {\n    \"role\": \"user\",\n    \"content\": \"{{ $json.body.order_text }}\"\n  }\n]\n"
+            },
+            {
+              "name": "model",
+              "value": "\"\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "500cf645-f20a-488c-b6d7-df124bd1044a",
+      "name": "HTTP Request to LM Studio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Читаем русский или английский ключ контента из ответа модели\nconst choices = $input.item.json.выбор || $input.item.json.choices;\nconst message = choices[0].сообщение || choices[0].message;\nconst responseText = message.содержимое || message.content;\n\ntry {\n  // Пытаемся распарсить JSON, если модель выплюнула его чистым\n  return { json: JSON.parse(responseText.trim()) };\n} catch (e) {\n  // Если модель налила воды вокруг JSON, возвращаем текст как есть\n  return { json: { error: \"Ответ не является чистым JSON\", text: responseText } };\n}\n"
+      },
+      "id": "6adc5fbd-c04f-4fd9-9469-1849fe9dc3fd",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wood-order",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d399bc7b-e0b6-4173-a31e-97870e70289a",
+      "name": "Webhook",
+      "webhookId": "a3dcd355-2704-4bc4-b121-78b8b26c7e0c"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "764a6415-3bc8-4d6f-b9f5-135456c87e4e",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request to LM Studio": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request to LM Studio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "43b01988-e898-4640-8480-2b20bdb44ba9",
+  "meta": {
+    "instanceId": "cb34b5b130bf640e8a4cafb9887ac87dfbf55710d99b8fe6926707532a878678"
+  },
+  "nodeGroups": [],
+  "id": "Gz3LyJI73aaRH85a",
+  "tags": []
+}
